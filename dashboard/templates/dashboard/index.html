@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#overview">
+                            <i class="bi bi-house-door"></i> Overview
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#providers">
+                            <i class="bi bi-people"></i> Service Providers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#requests">
+                            <i class="bi bi-list-check"></i> Service Requests
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-10 ms-sm-auto px-md-4">
+            <!-- Overview Section -->
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Dashboard Overview</h1>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Providers</h5>
+                            <p class="card-text display-4">{{ providers.count }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Active Requests</h5>
+                            <p class="card-text display-4">{{ requests.count }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service Providers Table -->
+            <div class="mt-4">
+                <h2>Service Providers</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Business Name</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for provider in providers %}
+                            <tr>
+                                <td>{{ provider.business_name }}</td>
+                                <td>
+                                    <span class="badge bg-{{ provider.verification_status|yesno:'success,warning' }}">
+                                        {{ provider.verification_status }}
+                                    </span>
+                                </td>
+                                <td>{{ provider.created_at|date }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary">View</button>
+                                    <button class="btn btn-sm btn-success">Approve</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Service Requests Table -->
+            <div class="mt-4">
+                <h2>Service Requests</h2>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Service Type</th>
+                                <th>Status</th>
+                                <th>User</th>
+                                <th>Provider</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in requests %}
+                            <tr>
+                                <td>{{ request.service_type }}</td>
+                                <td>
+                                    <span class="badge bg-{{ request.status|yesno:'success,warning' }}">
+                                        {{ request.status }}
+                                    </span>
+                                </td>
+                                <td>{{ request.user.username }}</td>
+                                <td>{{ request.provider.business_name|default:"Unassigned" }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary">View</button>
+                                    <button class="btn btn-sm btn-danger">Resolve</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

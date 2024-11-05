@@ -1,0 +1,13 @@
+{
+  "name": "dexitech",
+  "version": "1.0.0",
+  "description": "Dexitech Service Platform",
+  "scripts": {
+    "setup": "npm install && python3 -m pip install -r requirements.txt",
+    "start": "python3 manage.py runserver",
+    "migrate": "python3 manage.py makemigrations && python3 manage.py migrate"
+  },
+  "dependencies": {
+    "python-shell": "^3.0.1"
+  }
+}
