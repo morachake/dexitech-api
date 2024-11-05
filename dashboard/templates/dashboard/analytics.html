@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-2 d-none d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                {% include 'dashboard/includes/sidebar.html' with active='analytics' %}
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-10 ms-sm-auto px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Analytics Dashboard</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary">Export</button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle">
+                        <i class="bi bi-calendar"></i>
+                        This month
+                    </button>
+                </div>
+            </div>
+
+            <!-- Revenue Chart -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Revenue Overview</h5>
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Service Requests Analytics -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Requests by Status</h5>
+                            <canvas id="requestsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">User Growth</h5>
+                            <canvas id="userGrowthChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Providers -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Top Performing Providers</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Provider</th>
+                                    <th>Rating</th>
+                                    <th>Total Reviews</th>
+                                    <th>Completed Jobs</th>
+                                    <th>Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for provider in top_providers %}
+                                <tr>
+                                    <td>{{ provider.business_name }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="text-warning me-1">★</span>
+                                            {{ provider.average_rating|floatformat:1 }}
+                                        </div>
+                                    </td>
+                                    <td>{{ provider.total_reviews }}</td>
+                                    <td>{{ provider.servicerequest_set.all|length }}</td>
+                                    <td>${{ provider.total_revenue|default:0|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Revenue Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: {{ revenue_by_day|safe }}.map(item => new Date(item.date).toLocaleDateString()),
+            datasets: [{
+                label: 'Revenue',
+                data: {{ revenue_by_day|safe }}.map(item => item.total),
+                borderColor: '#4f46e5',
+                tension: 0.1,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `$${context.raw.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Requests by Status Chart
+    const requestsCtx = document.getElementById('requestsChart').getContext('2d');
+    new Chart(requestsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ requests_by_status|safe }}.map(item => item.status.charAt(0).toUpperCase() + item.status.slice(1)),
+            datasets: [{
+                data: {{ requests_by_status|safe }}.map(item => item.count),
+                backgroundColor: [
+                    '#4f46e5',
+                    '#10b981',
+                    '#f59e0b',
+                    '#ef4444'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // User Growth Chart
+    const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
+    new Chart(userGrowthCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ user_growth|safe }}.map(item => new Date(item.date).toLocaleDateString()),
+            datasets: [{
+                label: 'New Users',
+                data: {{ user_growth|safe }}.map(item => item.count),
+                backgroundColor: '#4f46e5'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

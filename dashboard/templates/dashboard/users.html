@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-2 d-none d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                {% include 'dashboard/includes/sidebar.html' with active='users' %}
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-10 ms-sm-auto px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">User Management</h1>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card stats-card primary">
+                        <div class="card-body">
+                            <h5 class="card-title text-white">Total Users</h5>
+                            <p class="card-text display-4">{{ total_users }}</p>
+                            <i class="bi bi-people icon"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stats-card success">
+                        <div class="card-body">
+                            <h5 class="card-title text-white">Active Users</h5>
+                            <p class="card-text display-4">{{ active_users }}</p>
+                            <i class="bi bi-person-check icon"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card stats-card info">
+                        <div class="card-body">
+                            <h5 class="card-title text-white">New Today</h5>
+                            <p class="card-text display-4">{{ new_users_today }}</p>
+                            <i class="bi bi-person-plus icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Table -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title">All Users</h5>
+                        <div class="search-controls">
+                            <input type="text" class="form-control" placeholder="Search users..." id="userSearch">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Type</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ user.is_active|yesno:'success,danger' }}">
+                                            {{ user.is_active|yesno:'Active,Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if user.is_staff %}
+                                        <span class="badge bg-primary">Staff</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">User</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.date_joined|date }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-primary view-user" 
+                                                    data-user-id="{{ user.id }}">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            {% if user.is_active %}
+                                            <button class="btn btn-sm btn-danger deactivate-user" 
+                                                    data-user-id="{{ user.id }}">
+                                                <i class="bi bi-person-x"></i>
+                                            </button>
+                                            {% else %}
+                                            <button class="btn btn-sm btn-success activate-user" 
+                                                    data-user-id="{{ user.id }}">
+                                                <i class="bi bi-person-check"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- User Details Modal -->
+<div class="modal fade" id="userDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">User Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userSearch = document.getElementById('userSearch');
+    
+    userSearch.addEventListener('input', debounce(function() {
+        const url = new URL(window.location);
+        url.searchParams.set('search', this.value);
+        window.location = url;
+    }, 500));
+
+    // Set the current search value
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('search')) {
+        userSearch.value = urlParams.get('search');
+    }
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // User actions
+    document.querySelectorAll('.view-user').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            fetch(`/dashboard/api/users/${userId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const modal = document.getElementById('userDetailsModal');
+                    modal.querySelector('.modal-body').innerHTML = `
+                        <dl class="row">
+                            <dt class="col-sm-3">Username</dt>
+                            <dd class="col-sm-9">${data.username}</dd>
+                            
+                            <dt class="col-sm-3">Email</dt>
+                            <dd class="col-sm-9">${data.email}</dd>
+                            
+                            <dt class="col-sm-3">Status</dt>
+                            <dd class="col-sm-9">
+                                <span class="badge bg-${data.is_active ? 'success' : 'danger'}">
+                                    ${data.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-3">Joined</dt>
+                            <dd class="col-sm-9">${new Date(data.date_joined).toLocaleDateString()}</dd>
+                        </dl>
+                    `;
+                    new bootstrap.Modal(modal).show();
+                });
+        });
+    });
+});
+</script>
+{% endblock %}

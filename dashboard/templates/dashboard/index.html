@@ -5,25 +5,9 @@
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+        <nav class="col-md-2 d-none d-md-block sidebar">
             <div class="position-sticky pt-3">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="#overview">
-                            <i class="bi bi-house-door"></i> Overview
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#providers">
-                            <i class="bi bi-people"></i> Service Providers
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#requests">
-                            <i class="bi bi-list-check"></i> Service Requests
-                        </a>
-                    </li>
-                </ul>
+                {% include 'dashboard/includes/sidebar.html' with active='overview' %}
             </div>
         </nav>
 
@@ -32,98 +16,250 @@
             <!-- Overview Section -->
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                 <h1 class="h2">Dashboard Overview</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-download me-1"></i> Export
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Stats Cards -->
             <div class="row">
-                <div class="col-md-4 mb-4">
-                    <div class="card">
+                <div class="col-md-3 mb-4">
+                    <div class="card stats-card primary">
                         <div class="card-body">
-                            <h5 class="card-title">Total Providers</h5>
+                            <h5 class="card-title text-white">Total Providers</h5>
                             <p class="card-text display-4">{{ providers.count }}</p>
+                            <small class="text-white-50">{{ active_providers }} Active</small>
+                            <i class="bi bi-people icon"></i>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-4">
-                    <div class="card">
+                <div class="col-md-3 mb-4">
+                    <div class="card stats-card success">
                         <div class="card-body">
-                            <h5 class="card-title">Active Requests</h5>
+                            <h5 class="card-title text-white">Active Requests</h5>
                             <p class="card-text display-4">{{ requests.count }}</p>
+                            <small class="text-white-50">{{ pending_requests }} Pending</small>
+                            <i class="bi bi-list-check icon"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card stats-card warning">
+                        <div class="card-body">
+                            <h5 class="card-title text-white">Total Users</h5>
+                            <p class="card-text display-4">{{ user_count }}</p>
+                            <small class="text-white-50">Last 30 days</small>
+                            <i class="bi bi-person icon"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card stats-card info">
+                        <div class="card-body">
+                            <h5 class="card-title text-white">Revenue</h5>
+                            <p class="card-text display-4">${{ total_revenue|floatformat:2 }}</p>
+                            <small class="text-white-50">This month</small>
+                            <i class="bi bi-currency-dollar icon"></i>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Service Providers Table -->
-            <div class="mt-4">
-                <h2>Service Providers</h2>
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Business Name</th>
-                                <th>Status</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for provider in providers %}
-                            <tr>
-                                <td>{{ provider.business_name }}</td>
-                                <td>
-                                    <span class="badge bg-{{ provider.verification_status|yesno:'success,warning' }}">
-                                        {{ provider.verification_status }}
-                                    </span>
-                                </td>
-                                <td>{{ provider.created_at|date }}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary">View</button>
-                                    <button class="btn btn-sm btn-success">Approve</button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <!-- Recent Service Providers -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title">Recent Service Providers</h5>
+                        <a href="{% url 'providers' %}" class="btn btn-sm btn-primary">View All</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Business Name</th>
+                                    <th>Location</th>
+                                    <th>Services</th>
+                                    <th>Status</th>
+                                    <th>Rating</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for provider in providers|slice:":5" %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'provider_detail' provider.id %}" class="text-decoration-none">
+                                            {{ provider.business_name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ provider.location|default:"Not specified" }}</td>
+                                    <td>
+                                        {% for service in provider.services_offered.all|slice:":3" %}
+                                            <span class="badge bg-info">{{ service.name }}</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ provider.verification_status }}">
+                                            {{ provider.verification_status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="text-warning me-1">★</span>
+                                            {{ provider.average_rating|floatformat:1 }}
+                                            <small class="text-muted ms-2">({{ provider.total_reviews }})</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'provider_detail' provider.id %}" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% if provider.verification_status == 'pending' %}
+                                            <button class="btn btn-sm btn-success approve-provider" data-provider-id="{{ provider.id }}">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- Service Requests Table -->
-            <div class="mt-4">
-                <h2>Service Requests</h2>
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Service Type</th>
-                                <th>Status</th>
-                                <th>User</th>
-                                <th>Provider</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for request in requests %}
-                            <tr>
-                                <td>{{ request.service_type }}</td>
-                                <td>
-                                    <span class="badge bg-{{ request.status|yesno:'success,warning' }}">
-                                        {{ request.status }}
-                                    </span>
-                                </td>
-                                <td>{{ request.user.username }}</td>
-                                <td>{{ request.provider.business_name|default:"Unassigned" }}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary">View</button>
-                                    <button class="btn btn-sm btn-danger">Resolve</button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <!-- Recent Service Requests -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title">Recent Service Requests</h5>
+                        <a href="{% url 'service_requests' %}" class="btn btn-sm btn-primary">View All</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Service Type</th>
+                                    <th>Customer</th>
+                                    <th>Provider</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in requests|slice:":5" %}
+                                <tr>
+                                    <td>{{ request.service_type }}</td>
+                                    <td>{{ request.client.user.username }}</td>
+                                    <td>{{ request.provider.business_name|default:"Unassigned" }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ request.status }}">
+                                            {{ request.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ request.created_at|date }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-primary view-request" data-request-id="{{ request.id }}">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            {% if request.status == 'disputed' %}
+                                            <button class="btn btn-sm btn-warning resolve-dispute" data-request-id="{{ request.id }}">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 </div>
+
+<!-- Request Details Modal -->
+<div class="modal fade" id="requestDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Request Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // View request details
+    document.querySelectorAll('.view-request').forEach(button => {
+        button.addEventListener('click', function() {
+            const requestId = this.dataset.requestId;
+            fetch(`/dashboard/api/requests/${requestId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const modal = document.getElementById('requestDetailsModal');
+                    modal.querySelector('.modal-body').innerHTML = `
+                        <dl class="row">
+                            <dt class="col-sm-3">Service Type</dt>
+                            <dd class="col-sm-9">${data.service_type}</dd>
+                            
+                            <dt class="col-sm-3">Details</dt>
+                            <dd class="col-sm-9">${data.details || 'No details provided'}</dd>
+                            
+                            <dt class="col-sm-3">Location</dt>
+                            <dd class="col-sm-9">${data.location || 'Not specified'}</dd>
+                            
+                            <dt class="col-sm-3">Amount</dt>
+                            <dd class="col-sm-9">$${data.amount}</dd>
+                            
+                            <dt class="col-sm-3">Status</dt>
+                            <dd class="col-sm-9">
+                                <span class="badge bg-${data.status}">
+                                    ${data.status}
+                                </span>
+                            </dd>
+                        </dl>
+                    `;
+                    new bootstrap.Modal(modal).show();
+                });
+        });
+    });
+
+    // Approve provider functionality
+    document.querySelectorAll('.approve-provider').forEach(button => {
+        button.addEventListener('click', function() {
+            const providerId = this.dataset.providerId;
+            fetch(`/dashboard/api/providers/${providerId}/update_status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ status: 'approved' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                }
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-2 d-none d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                {% include 'dashboard/includes/sidebar.html' with active='settings' %}
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-10 ms-sm-auto px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">System Settings</h1>
+            </div>
+
+            <!-- General Settings -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">General Settings</h5>
+                    <form id="generalSettingsForm">
+                        <div class="mb-3">
+                            <label class="form-label">Site Name</label>
+                            <input type="text" class="form-control" value="Dexitech Admin">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Contact Email</label>
+                            <input type="email" class="form-control" value="admin@dexitech.com">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Default Language</label>
+                            <select class="form-select">
+                                <option value="en">English</option>
+                                <option value="es">Spanish</option>
+                                <option value="fr">French</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Email Settings -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Email Settings</h5>
+                <boltAction type="file" filePath="dashboard/templates/dashboard/settings.html">                    <form id="emailSettingsForm">
+                        <div class="mb-3">
+                            <label class="form-label">SMTP Host</label>
+                            <input type="text" class="form-control" value="smtp.example.com">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">SMTP Port</label>
+                            <input type="number" class="form-control" value="587">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">SMTP Username</label>
+                            <input type="text" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">SMTP Password</label>
+                            <input type="password" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="useTLS" checked>
+                                <label class="form-check-label" for="useTLS">Use TLS</label>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Email Settings</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- API Settings -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">API Settings</h5>
+                    <div class="mb-3">
+                        <label class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="sk_test_123456789" readonly>
+                            <button class="btn btn-outline-secondary" type="button">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary" type="button">
+                                Regenerate
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Webhook URL</label>
+                        <input type="url" class="form-control" value="https://api.dexitech.com/webhooks">
+                    </div>
+                    <button type="button" class="btn btn-primary">Update API Settings</button>
+                </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Notification Settings</h5>
+                    <form id="notificationSettingsForm">
+                        <div class="mb-3">
+                            <h6>Email Notifications</h6>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="newProviderNotif" checked>
+                                <label class="form-check-label" for="newProviderNotif">
+                                    New Service Provider Registration
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="newRequestNotif" checked>
+                                <label class="form-check-label" for="newRequestNotif">
+                                    New Service Request
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="disputeNotif" checked>
+                                <label class="form-check-label" for="disputeNotif">
+                                    New Dispute Filed
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <h6>System Notifications</h6>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="systemUpdates" checked>
+                                <label class="form-check-label" for="systemUpdates">
+                                    System Updates
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="securityAlerts" checked>
+                                <label class="form-check-label" for="securityAlerts">
+                                    Security Alerts
+                                </label>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Notification Settings</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle form submissions
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            // Show success message
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success mt-3';
+            alert.textContent = 'Settings saved successfully!';
+            this.appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        });
+    });
+
+    // Copy API Key
+    const copyBtn = document.querySelector('.bi-clipboard').parentElement;
+    copyBtn.addEventListener('click', function() {
+        const apiKey = this.previousElementSibling;
+        navigator.clipboard.writeText(apiKey.value);
+        this.innerHTML = '<i class="bi bi-check"></i>';
+        setTimeout(() => {
+            this.innerHTML = '<i class="bi bi-clipboard"></i>';
+        }, 2000);
+    });
+
+    // Regenerate API Key
+    const regenerateBtn = document.querySelector('button:contains("Regenerate")');
+    regenerateBtn.addEventListener('click', function() {
+        const apiKeyInput = this.previousElementSibling.previousElementSibling;
+        const newKey = 'sk_test_' + Math.random().toString(36).substr(2, 9);
+        apiKeyInput.value = newKey;
+    });
+});
+</script>
+{% endblock %}

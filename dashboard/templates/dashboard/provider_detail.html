@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'dashboard' %}">
+                            <i class="bi bi-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-10 ms-sm-auto px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Provider Details: {{ provider.business_name }}</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        {% if provider.verification_status == 'pending' %}
+                        <button type="button" class="btn btn-success btn-sm approve-provider" data-provider-id="{{ provider.id }}">
+                            Approve
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm reject-provider" data-provider-id="{{ provider.id }}">
+                            Reject
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Provider Information -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Business Information</h5>
+                            <dl class="row">
+                                <dt class="col-sm-4">Business Name</dt>
+                                <dd class="col-sm-8">{{ provider.business_name }}</dd>
+                                
+                                <dt class="col-sm-4">Contact Email</dt>
+                                <dd class="col-sm-8">{{ provider.contact_email }}</dd>
+                                
+                                <dt class="col-sm-4">Contact Phone</dt>
+                                <dd class="col-sm-8">{{ provider.contact_phone }}</dd>
+                                
+                                <dt class="col-sm-4">Location</dt>
+                                <dd class="col-sm-8">{{ provider.location }}</dd>
+                                
+                                <dt class="col-sm-4">Status</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-{{ provider.verification_status|yesno:'success,warning' }}">
+                                        {{ provider.verification_status }}
+                                    </span>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Performance Metrics</h5>
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <h2>{{ provider.average_rating|floatformat:1 }}/5.0</h2>
+                                    <p class="text-muted">Average Rating</p>
+                                </div>
+                                <div class="col-6">
+                                    <h2>{{ provider.total_reviews }}</h2>
+                                    <p class="text-muted">Total Reviews</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service History -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Service History</h5>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Service Type</th>
+                                    <th>Status</th>
+                                    <th>Customer</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in provider.servicerequest_set.all %}
+                                <tr>
+                                    <td>{{ request.service_type }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ request.status|yesno:'success,warning' }}">
+                                            {{ request.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ request.user.username }}</td>
+                                    <td>{{ request.created_at|date }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reviews -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Customer Reviews</h5>
+                    {% for review in provider.reviews.all %}
+                    <div class="border-bottom mb-3 pb-3">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="mb-0">{{ review.user.username }}</h6>
+                                <small class="text-muted">{{ review.created_at|date }}</small>
+                            </div>
+                            <div>
+                                {% for i in "12345"|make_list %}
+                                <i class="bi bi-star{% if forloop.counter <= review.rating %}-fill text-warning{% endif %}"></i>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <p class="mt-2 mb-0">{{ review.comment }}</p>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No reviews yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const approveBtn = document.querySelector('.approve-provider');
+    const rejectBtn = document.querySelector('.reject-provider');
+
+    if (approveBtn) {
+        approveBtn.addEventListener('click', () => updateStatus('approved'));
+    }
+    if (rejectBtn) {
+        rejectBtn.addEventListener('click', () => updateStatus('rejected'));
+    }
+
+    function updateStatus(status) {
+        const providerId = approveBtn.dataset.providerId;
+        fetch(`/dashboard/api/providers/${providerId}/update_status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.reload();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

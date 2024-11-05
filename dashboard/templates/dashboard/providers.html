@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav class="col-md-2 d-none d-md-block sidebar">
+            <div class="position-sticky pt-3">
+                {% include 'dashboard/includes/sidebar.html' with active='providers' %}
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-10 ms-sm-auto px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1 class="h2">Service Providers</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search and Filter Controls -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="search-controls">
+                        <input type="text" class="form-control" id="providerSearch" placeholder="Search providers...">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Providers Table -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Business Name</th>
+                                    <th>Contact</th>
+                                    <th>Location</th>
+                                    <th>Services</th>
+                                    <th>Status</th>
+                                    <th>Rating</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for provider in providers %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'provider_detail' provider.id %}" class="text-decoration-none">
+                                            {{ provider.business_name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div>{{ provider.contact_email }}</div>
+                                        <small class="text-muted">{{ provider.contact_phone }}</small>
+                                    </td>
+                                    <td>{{ provider.location|default:"Not specified" }}</td>
+                                    <td>
+                                        {% for service in provider.services_offered.all|slice:":3" %}
+                                            <span class="badge bg-info">{{ service.name }}</span>
+                                        {% endfor %}
+                                        {% if provider.services_offered.count > 3 %}
+                                            <span class="badge bg-secondary">+{{ provider.services_offered.count|add:"-3" }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ provider.verification_status }}">
+                                            {{ provider.verification_status|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="text-warning me-1">★</span>
+                                            {{ provider.average_rating|floatformat:1 }}
+                                            <small class="text-muted ms-2">({{ provider.total_reviews }})</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'provider_detail' provider.id %}" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% if provider.verification_status == 'pending' %}
+                                            <button class="btn btn-sm btn-success approve-provider" data-provider-id="{{ provider.id }}">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger reject-provider" data-provider-id="{{ provider.id }}">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="bi bi-search fs-4 d-block mb-2"></i>
+                                            No service providers found
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const providerSearch = document.getElementById('providerSearch');
+    const statusFilter = document.getElementById('statusFilter');
+    
+    // Search functionality
+    providerSearch.addEventListener('input', debounce(function() {
+        const url = new URL(window.location);
+        url.searchParams.set('search', this.value);
+        window.location = url;
+    }, 500));
+
+    // Status filter
+    statusFilter.addEventListener('change', function() {
+        const url = new URL(window.location);
+        url.searchParams.set('status', this.value);
+        window.location = url;
+    });
+
+    // Set current search and filter values
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('search')) {
+        providerSearch.value = urlParams.get('search');
+    }
+    if (urlParams.has('status')) {
+        statusFilter.value = urlParams.get('status');
+    }
+
+    // Approve/Reject provider functionality
+    document.querySelectorAll('.approve-provider, .reject-provider').forEach(button => {
+        button.addEventListener('click', function() {
+            const providerId = this.dataset.providerId;
+            const status = this.classList.contains('approve-provider') ? 'approved' : 'rejected';
+            
+            fetch(`/dashboard/api/providers/${providerId}/update_status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ status })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.location.reload();
+                }
+            });
+        });
+    });
+
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+});
+</script>
+{% endblock %}
