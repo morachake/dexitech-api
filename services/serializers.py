@@ -1,14 +1,17 @@
 from rest_framework import serializers
-from .models import ServiceCategory, Service
-
-class ServiceCategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ServiceCategory
-        fields = '__all__'
+from .models import Service
 
 class ServiceSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    icon_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Service
-        fields = ['id', 'category', 'category_name', 'name', 'description', 'base_price', 'created_at']
+        fields = ['id', 'name', 'description', 'icon', 'icon_url', 'created_at']
+        read_only_fields = ['id', 'created_at', 'icon_url']
+    
+    def get_icon_url(self, obj):
+        if obj.icon:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.icon.url)
+        return None

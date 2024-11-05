@@ -4,22 +4,26 @@ from services.models import Service
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 class ServiceProvider(models.Model):
+    PROVIDER_TYPES = [
+        ('individual', 'Individual'),
+        ('entity', 'Entity')
+    ]
+    
+    VERIFICATION_STATUS = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected')
+    ]
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    provider_type = models.CharField(max_length=20, choices=PROVIDER_TYPES, default='individual')
     business_name = models.CharField(max_length=100)
-    verification_status = models.CharField(
-        max_length=20,
-        choices=[
-            ('pending', 'Pending'),
-            ('approved', 'Approved'),
-            ('rejected', 'Rejected')
-        ],
-        default='pending'
-    )
+    verification_status = models.CharField(max_length=20, choices=VERIFICATION_STATUS, default='pending')
     contact_email = models.EmailField(null=True, blank=True)
     contact_phone = models.CharField(max_length=15, null=True, blank=True)
     location = models.CharField(max_length=200, null=True, blank=True)
     services_offered = models.ManyToManyField(Service, related_name='providers', blank=True)
-    documentation = models.FileField(upload_to='provider_docs/', null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
@@ -35,6 +39,16 @@ class ServiceProvider(models.Model):
             self.average_rating = total / len(reviews)
             self.total_reviews = len(reviews)
             self.save()
+
+class ProviderDocument(models.Model):
+    provider = models.ForeignKey(ServiceProvider, on_delete=models.CASCADE, related_name='documents')
+    name = models.CharField(max_length=255)
+    file = models.FileField(upload_to='provider_docs/')
+    document_type = models.CharField(max_length=50)  # e.g., 'certificate', 'identification', etc.
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.name} - {self.provider.business_name}"
 
 class Client(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

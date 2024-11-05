@@ -1,18 +1,27 @@
-from rest_framework import viewsets
-from .models import ServiceCategory, Service
-from .serializers import ServiceCategorySerializer, ServiceSerializer
-
-class ServiceCategoryViewSet(viewsets.ModelViewSet):
-    queryset = ServiceCategory.objects.all()
-    serializer_class = ServiceCategorySerializer
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import Service
+from .serializers import ServiceSerializer
 
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
+    parser_classes = (MultiPartParser, FormParser)
     
-    def get_queryset(self):
-        queryset = Service.objects.all()
-        category = self.request.query_params.get('category', None)
-        if category:
-            queryset = queryset.filter(category__id=category)
-        return queryset
+    def create(self, request, *args, **kwargs):
+        try:
+            # Create service with uploaded icon
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            
+            return Response({
+                'status': 'success',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)

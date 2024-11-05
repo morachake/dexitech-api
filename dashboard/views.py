@@ -7,8 +7,11 @@ from datetime import timedelta
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import ServiceProvider, ServiceRequest, ProviderReview, Client
-from .serializers import ServiceProviderSerializer, ServiceRequestSerializer, ProviderReviewSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import ServiceProvider, ServiceRequest, ProviderReview, Client, ProviderDocument
+from services.models import Service
+from .serializers import ServiceProviderSerializer, ServiceRequestSerializer, ProviderReviewSerializer, ProviderDocumentSerializer
+import json
 
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'dashboard/index.html'
@@ -44,6 +47,11 @@ class ServiceProvidersView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     
     def test_func(self):
         return self.request.user.is_staff
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['services'] = Service.objects.all()
+        return context
     
     def get_queryset(self):
         queryset = ServiceProvider.objects.all()
@@ -157,17 +165,124 @@ class SettingsView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
 class ServiceProviderViewSet(viewsets.ModelViewSet):
     queryset = ServiceProvider.objects.all()
     serializer_class = ServiceProviderSerializer
-    
+    parser_classes = (MultiPartParser, FormParser)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            data = request.data.copy()
+            
+            # Handle services offered
+            services_offered = []
+            if 'services_offered' in request.data:
+                try:
+                    services_offered = json.loads(request.data['services_offered'])
+                except json.JSONDecodeError:
+                    services_offered = request.data.getlist('services_offered')
+            
+            # Create provider
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            provider = serializer.save()
+            
+            # Add services
+            if services_offered:
+                provider.services_offered.set(services_offered)
+            
+            # Handle documents
+            documents = request.FILES.getlist('documentation')
+            for doc in documents:
+                ProviderDocument.objects.create(
+                    provider=provider,
+                    name=doc.name,
+                    file=doc,
+                    document_type='identification'
+                )
+            
+            return Response({
+                'status': 'success',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            provider = self.get_object()
+            data = request.data.copy()
+            
+            # Handle services offered
+            services_offered = []
+            if 'services_offered' in request.data:
+                try:
+                    services_offered = json.loads(request.data['services_offered'])
+                except json.JSONDecodeError:
+                    services_offered = request.data.getlist('services_offered')
+            
+            # Update provider
+            serializer = self.get_serializer(provider, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            provider = serializer.save()
+            
+            # Update services
+            if services_offered:
+                provider.services_offered.set(services_offered)
+            
+            # Handle new documents
+            documents = request.FILES.getlist('documentation')
+            for doc in documents:
+                ProviderDocument.objects.create(
+                    provider=provider,
+                    name=doc.name,
+                    file=doc,
+                    document_type='identification'
+                )
+            
+            return Response({
+                'status': 'success',
+                'data': serializer.data
+            })
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=True, methods=['post'])
     def update_status(self, request, pk=None):
-        provider = self.get_object()
-        status = request.data.get('status')
-        if status in ['approved', 'rejected']:
-            provider.verification_status = status
-            provider.save()
-            return Response({'status': 'success'})
-        return Response({'status': 'error'}, status=400)
+        try:
+            provider = self.get_object()
+            status_value = request.data.get('status')
+            if status_value in ['approved', 'rejected']:
+                provider.verification_status = status_value
+                provider.save()
+                return Response({'status': 'success'})
+            return Response({
+                'status': 'error',
+                'message': 'Invalid status value'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-class ServiceRequestViewSet(viewsets.ModelViewSet):
-    queryset = ServiceRequest.objects.all()
-    serializer_class = ServiceRequestSerializer
+class ProviderDocumentViewSet(viewsets.ModelViewSet):
+    serializer_class = ProviderDocumentSerializer
+    parser_classes = (MultiPartParser, FormParser)
+
+    def get_queryset(self):
+        return ProviderDocument.objects.all()
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            document = self.get_object()
+            document.delete()
+            return Response({'status': 'success'})
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ServiceProvider, ServiceRequest, ProviderReview, Client
+from .models import ServiceProvider, ServiceRequest, ProviderReview, Client,ProviderDocument
 from services.serializers import ServiceSerializer
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -18,13 +18,23 @@ class ProviderReviewSerializer(serializers.ModelSerializer):
         model = ProviderReview
         fields = ['id', 'username', 'rating', 'comment', 'created_at']
 
+class ProviderDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProviderDocument
+        fields = ['id', 'name', 'file', 'document_type', 'uploaded_at']
+        
 class ServiceProviderSerializer(serializers.ModelSerializer):
     services_offered = ServiceSerializer(many=True, read_only=True)
-    reviews = ProviderReviewSerializer(many=True, read_only=True)
+    documents = ProviderDocumentSerializer(many=True, read_only=True)
     
     class Meta:
         model = ServiceProvider
-        fields = '__all__'
+        fields = [
+            'id', 'business_name', 'provider_type', 'verification_status',
+            'contact_email', 'contact_phone', 'location', 'services_offered',
+            'documents', 'notes', 'average_rating', 'total_reviews'
+        ]
+        read_only_fields = ['id', 'average_rating', 'total_reviews']
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
     provider_name = serializers.CharField(source='provider.business_name', read_only=True)

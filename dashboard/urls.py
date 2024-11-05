@@ -4,7 +4,7 @@ from . import views
 
 router = DefaultRouter()
 router.register(r'providers', views.ServiceProviderViewSet)
-router.register(r'requests', views.ServiceRequestViewSet)
+router.register(r'documents', views.ProviderDocumentViewSet, basename='document')
 
 urlpatterns = [
     path('', views.AdminDashboardView.as_view(), name='dashboard'),
