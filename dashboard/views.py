@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import ServiceProvider, ServiceRequest, ProviderReview, Client, ProviderDocument
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from services.models import Service
 from .serializers import ServiceProviderSerializer, ServiceRequestSerializer, ProviderReviewSerializer, ProviderDocumentSerializer
 import json
@@ -45,29 +46,33 @@ class ServiceProvidersView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     template_name = 'dashboard/providers.html'
     model = ServiceProvider
     context_object_name = 'providers'
+    paginate_by = 10
     
     def test_func(self):
         return self.request.user.is_staff
     
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['services'] = Service.objects.all()
-        return context
-    
     def get_queryset(self):
         queryset = ServiceProvider.objects.all()
-        search = self.request.GET.get('search')
-        status = self.request.GET.get('status')
+        search_query = self.request.GET.get('search')
+        status_filter = self.request.GET.get('status')
         
-        if search:
+        if search_query:
             queryset = queryset.filter(
-                Q(business_name__icontains=search) |
-                Q(contact_email__icontains=search)
+                Q(business_name__icontains=search_query) |
+                Q(contact_email__icontains=search_query)
             )
-        if status:
-            queryset = queryset.filter(verification_status=status)
+        
+        if status_filter:
+            queryset = queryset.filter(verification_status=status_filter)
             
-        return queryset
+        return queryset.order_by('-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['services'] = Service.objects.values('id', 'name', 'description')
+        context['search_query'] = self.request.GET.get('search', '')
+        context['status_filter'] = self.request.GET.get('status', '')
+        return context
 
 class ServiceProviderDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     template_name = 'dashboard/provider_detail.html'
@@ -76,14 +81,52 @@ class ServiceProviderDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailV
     
     def test_func(self):
         return self.request.user.is_staff
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Paginate service requests
+        service_requests = self.object.servicerequest_set.all().order_by('-created_at')
+        paginator = Paginator(service_requests, 10)
+        page = self.request.GET.get('requests_page')
+        
+        try:
+            context['service_requests'] = paginator.page(page)
+        except PageNotAnInteger:
+            context['service_requests'] = paginator.page(1)
+        except EmptyPage:
+            context['service_requests'] = paginator.page(paginator.num_pages)
+            
+        # Paginate reviews
+        reviews = self.object.reviews.all().order_by('-created_at')
+        review_paginator = Paginator(reviews, 5)
+        review_page = self.request.GET.get('reviews_page')
+        
+        try:
+            context['reviews'] = review_paginator.page(review_page)
+        except PageNotAnInteger:
+            context['reviews'] = review_paginator.page(1)
+        except EmptyPage:
+            context['reviews'] = review_paginator.page(review_paginator.num_pages)
+            
+        return context
 
 class ServiceRequestsView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     template_name = 'dashboard/requests.html'
     model = ServiceRequest
     context_object_name = 'requests'
+    paginate_by = 10
     
     def test_func(self):
         return self.request.user.is_staff
+    
+    def get_queryset(self):
+        queryset = ServiceRequest.objects.all()
+        status_filter = self.request.GET.get('status')
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+            
+        return queryset.order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -91,30 +134,43 @@ class ServiceRequestsView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             'pending': ServiceRequest.objects.filter(status='pending').count(),
             'in_progress': ServiceRequest.objects.filter(status='in_progress').count(),
             'completed': ServiceRequest.objects.filter(status='completed').count(),
-            'disputed': ServiceRequest.objects.filter(status='disputed').count(),
+            'disputed': ServiceRequest.objects.filter(status='disputed').count()
         }
+        context['status_filter'] = self.request.GET.get('status', '')
         return context
 
 class UsersView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     template_name = 'dashboard/users.html'
     model = User
     context_object_name = 'users'
+    paginate_by = 10
     
     def test_func(self):
         return self.request.user.is_staff
     
+    def get_queryset(self):
+        queryset = User.objects.all()
+        search_query = self.request.GET.get('search')
+        
+        if search_query:
+            queryset = queryset.filter(
+                Q(email__icontains=search_query) |
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query)
+            )
+            
+        return queryset.order_by('-id')
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        today = timezone.now()
-        
+        context['search_query'] = self.request.GET.get('search', '')
         context['total_users'] = User.objects.count()
         context['active_users'] = User.objects.filter(is_active=True).count()
         context['new_users_today'] = User.objects.filter(
-            date_joined__date=today.date()
+            date_joined__date=timezone.now().date()
         ).count()
-        
         return context
-
+    
 class AnalyticsView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'dashboard/analytics.html'
     

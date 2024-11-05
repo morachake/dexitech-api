@@ -54,7 +54,13 @@
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="card-title">All Users</h5>
                         <div class="search-controls">
-                            <input type="text" class="form-control" placeholder="Search users..." id="userSearch">
+                            <form class="d-flex gap-2" method="get">
+                                <input type="text" class="form-control" name="search" placeholder="Search users..." value="{{ search_query }}">
+                                <button type="submit" class="btn btn-primary">Search</button>
+                                {% if search_query %}
+                                <a href="{% url 'users' %}" class="btn btn-outline-secondary">Clear</a>
+                                {% endif %}
+                            </form>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -62,10 +68,10 @@
                             <thead>
                                 <tr>
                                     <th>Username</th>
+
                                     <th>Email</th>
                                     <th>Status</th>
                                     <th>Type</th>
-                                    <th>Joined</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -73,6 +79,7 @@
                                 {% for user in users %}
                                 <tr>
                                     <td>{{ user.username }}</td>
+
                                     <td>{{ user.email }}</td>
                                     <td>
                                         <span class="badge bg-{{ user.is_active|yesno:'success,danger' }}">
@@ -86,11 +93,12 @@
                                         <span class="badge bg-secondary">User</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ user.date_joined|date }}</td>
                                     <td>
                                         <div class="btn-group">
                                             <button class="btn btn-sm btn-primary view-user" 
-                                                    data-user-id="{{ user.id }}">
+                                                    data-user-id="{{ user.id }}"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#userDetailsModal">
                                                 <i class="bi bi-eye"></i>
                                             </button>
                                             {% if user.is_active %}
@@ -107,10 +115,21 @@
                                         </div>
                                     </td>
                                 </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="bi bi-search fs-4 d-block mb-2"></i>
+                                            No users found
+                                        </div>
+                                    </td>
+                                </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    
+                    {% include 'dashboard/includes/pagination.html' %}
                 </div>
             </div>
         </main>
@@ -126,7 +145,86 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <!-- Content will be loaded dynamically -->
+                <div class="row">
+                    <!-- Basic Info -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">Basic Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Email</dt>
+                                    <dd class="col-sm-8" id="userEmail"></dd>
+                                    
+                                    <dt class="col-sm-4">First Name</dt>
+                                    <dd class="col-sm-8" id="userFirstName"></dd>
+                                    
+                                    <dt class="col-sm-4">Last Name</dt>
+                                    <dd class="col-sm-8" id="userLastName"></dd>
+                                    
+                                    <dt class="col-sm-4">Status</dt>
+                                    <dd class="col-sm-8" id="userStatus"></dd>
+                                    
+                                    <dt class="col-sm-4">Type</dt>
+                                    <dd class="col-sm-8" id="userType"></dd>
+                                    
+                                    <dt class="col-sm-4">Joined</dt>
+                                    <dd class="col-sm-8" id="userJoined"></dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Info -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0">Additional Information</h6>
+                            </div>
+                            <div class="card-body">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Last Login</dt>
+                                    <dd class="col-sm-8" id="userLastLogin"></dd>
+                                    
+                                    <dt class="col-sm-4">Phone</dt>
+                                    <dd class="col-sm-8" id="userPhone"></dd>
+                                    
+                                    <dt class="col-sm-4">Address</dt>
+                                    <dd class="col-sm-8" id="userAddress"></dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Activity Stats -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Activity Statistics</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-md-4">
+                                        <h3 class="mb-1" id="totalRequests">0</h3>
+                                        <small class="text-muted">Total Requests</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h3 class="mb-1" id="completedRequests">0</h3>
+                                        <small class="text-muted">Completed Requests</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h3 class="mb-1" id="averageRating">0.0</h3>
+                                        <small class="text-muted">Average Rating</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -134,62 +232,71 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const userSearch = document.getElementById('userSearch');
-    
-    userSearch.addEventListener('input', debounce(function() {
-        const url = new URL(window.location);
-        url.searchParams.set('search', this.value);
-        window.location = url;
-    }, 500));
-
-    // Set the current search value
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('search')) {
-        userSearch.value = urlParams.get('search');
-    }
-
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func.apply(this, args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-
-    // User actions
+    // User details
     document.querySelectorAll('.view-user').forEach(button => {
         button.addEventListener('click', function() {
             const userId = this.dataset.userId;
             fetch(`/dashboard/api/users/${userId}/`)
                 .then(response => response.json())
                 .then(data => {
-                    const modal = document.getElementById('userDetailsModal');
-                    modal.querySelector('.modal-body').innerHTML = `
-                        <dl class="row">
-                            <dt class="col-sm-3">Username</dt>
-                            <dd class="col-sm-9">${data.username}</dd>
-                            
-                            <dt class="col-sm-3">Email</dt>
-                            <dd class="col-sm-9">${data.email}</dd>
-                            
-                            <dt class="col-sm-3">Status</dt>
-                            <dd class="col-sm-9">
-                                <span class="badge bg-${data.is_active ? 'success' : 'danger'}">
-                                    ${data.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                            </dd>
-                            
-                            <dt class="col-sm-3">Joined</dt>
-                            <dd class="col-sm-9">${new Date(data.date_joined).toLocaleDateString()}</dd>
-                        </dl>
+                    // Basic Info
+                    document.getElementById('userEmail').textContent = data.email;
+                    document.getElementById('userFirstName').textContent = data.first_name || 'Not provided';
+                    document.getElementById('userLastName').textContent = data.last_name || 'Not provided';
+                    document.getElementById('userStatus').innerHTML = `
+                        <span class="badge bg-${data.is_active ? 'success' : 'danger'}">
+                            ${data.is_active ? 'Active' : 'Inactive'}
+                        </span>
                     `;
-                    new bootstrap.Modal(modal).show();
+                    document.getElementById('userType').innerHTML = `
+                        <span class="badge bg-${data.is_staff ? 'primary' : 'secondary'}">
+                            ${data.is_staff ? 'Staff' : 'User'}
+                        </span>
+                    `;
+                    document.getElementById('userJoined').textContent = new Date(data.date_joined).toLocaleDateString();
+                    
+                    // Additional Info
+                    document.getElementById('userLastLogin').textContent = data.last_login ? 
+                        new Date(data.last_login).toLocaleString() : 'Never';
+                    document.getElementById('userPhone').textContent = data.profile?.phone_number || 'Not provided';
+                    document.getElementById('userAddress').textContent = data.profile?.address || 'Not provided';
+                    
+                    // Activity Stats
+                    document.getElementById('totalRequests').textContent = data.stats?.total_requests || 0;
+                    document.getElementById('completedRequests').textContent = data.stats?.completed_requests || 0;
+                    document.getElementById('averageRating').textContent = 
+                        (data.stats?.average_rating || 0).toFixed(1);
                 });
         });
+    });
+
+    // Activate/Deactivate user
+    document.querySelectorAll('.activate-user, .deactivate-user').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const action = this.classList.contains('activate-user') ? 'activate' : 'deactivate';
+            
+            if (confirm(`Are you sure you want to ${action} this user?`)) {
+                fetch(`/dashboard/api/users/${userId}/${action}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        window.location.reload();
+                    }
+                });
+            }
+        });
+    });
+
+    // Edit user
+    document.getElementById('editUser').addEventListener('click', function() {
+        // Implement user editing functionality
+        alert('Edit user functionality to be implemented');
     });
 });
 </script>

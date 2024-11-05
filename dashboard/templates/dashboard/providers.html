@@ -32,20 +32,22 @@
                 </div>
             </div>
 
-            <!-- Search and Filter Controls -->
+            <!-- Search and Filter -->
             <div class="row mb-4">
                 <div class="col-md-8">
-                    <div class="search-controls">
-                        <input type="text" class="form-control" id="providerSearch" placeholder="Search providers...">
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <select class="form-select" id="statusFilter">
-                        <option value="">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
+                    <form class="d-flex gap-2" method="get">
+                        <input type="text" class="form-control" name="search" placeholder="Search providers..." value="{{ search_query }}">
+                        <select class="form-select w-auto" name="status">
+                            <option value="">All Status</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                            <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Search</button>
+                        {% if search_query or status_filter %}
+                        <a href="{% url 'providers' %}" class="btn btn-outline-secondary">Clear</a>
+                        {% endif %}
+                    </form>
                 </div>
             </div>
 
@@ -135,6 +137,8 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    {% include 'dashboard/includes/pagination.html' %}
                 </div>
             </div>
         </main>
@@ -265,13 +269,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const providerSearch = document.getElementById('providerSearch');
-    const statusFilter = document.getElementById('statusFilter');
-    const providerForm = document.getElementById('providerForm');
-    const providerModal = document.getElementById('providerModal');
-    const modalTitle = document.getElementById('providerModalTitle');
-    
-    // Initialize select2 for better dropdown experience
+    // Initialize select2
     $('select[name="services_offered"]').select2({
         theme: 'bootstrap-5',
         width: '100%',
@@ -287,29 +285,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return service.text;
     }
-    
-    // Search functionality
-    providerSearch.addEventListener('input', debounce(function() {
-        const url = new URL(window.location);
-        url.searchParams.set('search', this.value);
-        window.location = url;
-    }, 500));
 
-    // Status filter
-    statusFilter.addEventListener('change', function() {
-        const url = new URL(window.location);
-        url.searchParams.set('status', this.value);
-        window.location = url;
-    });
-
-    // Set current search and filter values
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('search')) {
-        providerSearch.value = urlParams.get('search');
-    }
-    if (urlParams.has('status')) {
-        statusFilter.value = urlParams.get('status');
-    }
+    // Modal handling
+    const providerModal = document.getElementById('providerModal');
+    const providerForm = document.getElementById('providerForm');
+    const modalTitle = document.getElementById('providerModalTitle');
 
     // Reset form when modal is closed
     providerModal.addEventListener('hidden.bs.modal', function () {
@@ -326,7 +306,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const providerId = this.dataset.providerId;
             modalTitle.textContent = 'Edit Service Provider';
             
-            // Fetch provider data and populate form
             fetch(`/dashboard/api/providers/${providerId}/`)
                 .then(response => response.json())
                 .then(data => {
@@ -336,12 +315,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     providerForm.elements.contact_email.value = data.contact_email;
                     providerForm.elements.contact_phone.value = data.contact_phone;
                     providerForm.elements.location.value = data.location;
+                    providerForm.elements.notes.value = data.notes || '';
                     
-                    // Set selected services
                     const selectedServices = data.services_offered.map(s => s.id);
                     $('select[name="services_offered"]').val(selectedServices).trigger('change');
 
-                    // Display existing documents
                     const documentList = document.querySelector('.document-list');
                     documentList.innerHTML = data.documents.map(doc => `
                         <div class="d-flex align-items-center mb-2">
@@ -361,8 +339,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('saveProvider').addEventListener('click', function() {
         const formData = new FormData(providerForm);
         const providerId = document.getElementById('providerId').value;
-        
-        // Get selected services
         const selectedServices = $('select[name="services_offered"]').val();
         formData.set('services_offered', JSON.stringify(selectedServices));
 
@@ -405,7 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Approve/Reject provider functionality
+    // Approve/Reject provider
     document.querySelectorAll('.approve-provider, .reject-provider').forEach(button => {
         button.addEventListener('click', function() {
             const providerId = this.dataset.providerId;
@@ -449,18 +425,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func.apply(this, args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
 });
 </script>
 {% endblock %}
