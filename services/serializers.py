@@ -8,9 +8,10 @@ class ServiceSerializer(serializers.ModelSerializer):
         model = Service
         fields = ['id', 'name', 'description', 'icon', 'icon_url', 'created_at']
         read_only_fields = ['id', 'created_at', 'icon_url']
+        ref_name = 'ServiceModelSerializer'
     
     def get_icon_url(self, obj):
-        if obj.icon:
+        if obj.icon and hasattr(obj.icon, 'url'):
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.icon.url)
