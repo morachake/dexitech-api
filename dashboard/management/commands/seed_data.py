@@ -6,8 +6,6 @@ from services.models import Service
 from dashboard.models import ServiceProvider, ProviderDocument, ServiceRequest
 import random
 from faker import Faker
-import os
-from pathlib import Path
 import uuid
 
 fake = Faker()
@@ -55,13 +53,16 @@ class Command(BaseCommand):
         services = self._create_services(options['services'])
         self.stdout.write(self.style.SUCCESS(f'Created {len(services)} services'))
 
-        # Create service providers
-        providers = self._create_providers(options['providers'], services, users)
-        self.stdout.write(self.style.SUCCESS(f'Created {len(providers)} providers'))
+        # Create service providers only if we have services
+        if services:
+            providers = self._create_providers(options['providers'], services, users)
+            self.stdout.write(self.style.SUCCESS(f'Created {len(providers)} providers'))
 
-        # Create service requests
-        requests = self._create_requests(providers, users)
-        self.stdout.write(self.style.SUCCESS(f'Created {len(requests)} service requests'))
+            # Create service requests
+            requests = self._create_requests(providers, users)
+            self.stdout.write(self.style.SUCCESS(f'Created {len(requests)} service requests'))
+        else:
+            self.stdout.write(self.style.WARNING('No services created, skipping providers and requests'))
 
         self.stdout.write(self.style.SUCCESS('Data seeding completed successfully!'))
 
@@ -158,8 +159,9 @@ class Command(BaseCommand):
                 total_reviews=random.randint(0, 50)
             )
             
-            # Assign random services (2-5 services per provider)
-            selected_services = random.sample(list(services), random.randint(2, min(5, len(services))))
+            # Assign random services (1-5 services per provider)
+            num_services = min(len(services), random.randint(1, 5))
+            selected_services = random.sample(list(services), num_services)
             provider.services_offered.set(selected_services)
             
             # Create sample documents
@@ -188,11 +190,15 @@ class Command(BaseCommand):
         
         # Create 2-5 requests per provider
         for provider in providers:
+            services_offered = list(provider.services_offered.all())
+            if not services_offered:
+                continue
+                
             for _ in range(random.randint(2, 5)):
                 request = ServiceRequest.objects.create(
                     provider=provider,
                     client=random.choice(users),
-                    service_type=random.choice(list(provider.services_offered.all())).name,
+                    service_type=random.choice(services_offered).name,
                     status=random.choice(statuses),
                     details=fake.paragraph(),
                     location=fake.address(),
