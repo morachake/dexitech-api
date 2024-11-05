@@ -2,6 +2,7 @@ from django.views.generic import TemplateView, DetailView, ListView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Q, Count, Avg, Sum
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import viewsets, status
@@ -167,102 +168,103 @@ class ServiceProviderViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceProviderSerializer
     parser_classes = (MultiPartParser, FormParser)
 
+    def validate_phone_number(self, phone):
+        # Basic phone validation - can be enhanced based on requirements
+        pattern = re.compile(r'^\+?1?\d{9,15}$')
+        if not pattern.match(phone):
+            raise ValidationError('Invalid phone number format')
+
+    def validate_email(self, email):
+        # Basic email validation
+        pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        if not pattern.match(email):
+            raise ValidationError('Invalid email format')
+
     def create(self, request, *args, **kwargs):
         try:
-            data = request.data.copy()
-            
-            # Handle services offered
-            services_offered = []
-            if 'services_offered' in request.data:
-                try:
-                    services_offered = json.loads(request.data['services_offered'])
-                except json.JSONDecodeError:
-                    services_offered = request.data.getlist('services_offered')
-            
+            # Validate required fields
+            required_fields = ['business_name', 'contact_email', 'contact_phone', 'location', 'provider_type']
+            for field in required_fields:
+                if not request.data.get(field):
+                    raise ValidationError(f'{field.replace("_", " ").title()} is required')
+
+            # Validate email and phone
+            self.validate_email(request.data['contact_email'])
+            self.validate_phone_number(request.data['contact_phone'])
+
+            # Validate services offered
+            try:
+                services_offered = json.loads(request.data.get('services_offered', '[]'))
+                if not services_offered:
+                    raise ValidationError('At least one service must be selected')
+            except json.JSONDecodeError:
+                raise ValidationError('Invalid services data')
+
+            # Check if business name already exists
+            if ServiceProvider.objects.filter(business_name__iexact=request.data['business_name']).exists():
+                raise ValidationError('A provider with this business name already exists')
+
             # Create provider
-            serializer = self.get_serializer(data=data)
+            serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             provider = serializer.save()
-            
+
             # Add services
-            if services_offered:
-                provider.services_offered.set(services_offered)
-            
+            provider.services_offered.set(services_offered)
+
             # Handle documents
             documents = request.FILES.getlist('documentation')
+            if not documents:
+                raise ValidationError('At least one document is required')
+
             for doc in documents:
+                # Validate file size (e.g., max 5MB)
+                if doc.size > 5 * 1024 * 1024:
+                    raise ValidationError('Document size should not exceed 5MB')
+                
+                # Validate file type
+                allowed_types = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']
+                if not any(doc.name.lower().endswith(ext) for ext in allowed_types):
+                    raise ValidationError('Invalid document type')
+
                 ProviderDocument.objects.create(
                     provider=provider,
                     name=doc.name,
                     file=doc,
                     document_type='identification'
                 )
-            
+
             return Response({
                 'status': 'success',
+                'message': 'Provider created successfully',
                 'data': serializer.data
             }, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            return Response({
-                'status': 'error',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
 
-    def update(self, request, *args, **kwargs):
-        try:
-            provider = self.get_object()
-            data = request.data.copy()
-            
-            # Handle services offered
-            services_offered = []
-            if 'services_offered' in request.data:
-                try:
-                    services_offered = json.loads(request.data['services_offered'])
-                except json.JSONDecodeError:
-                    services_offered = request.data.getlist('services_offered')
-            
-            # Update provider
-            serializer = self.get_serializer(provider, data=data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            provider = serializer.save()
-            
-            # Update services
-            if services_offered:
-                provider.services_offered.set(services_offered)
-            
-            # Handle new documents
-            documents = request.FILES.getlist('documentation')
-            for doc in documents:
-                ProviderDocument.objects.create(
-                    provider=provider,
-                    name=doc.name,
-                    file=doc,
-                    document_type='identification'
-                )
-            
-            return Response({
-                'status': 'success',
-                'data': serializer.data
-            })
-        except Exception as e:
+        except ValidationError as e:
             return Response({
                 'status': 'error',
                 'message': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': 'An error occurred while creating the provider'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'])
     def update_status(self, request, pk=None):
         try:
             provider = self.get_object()
             status_value = request.data.get('status')
-            if status_value in ['approved', 'rejected']:
-                provider.verification_status = status_value
-                provider.save()
-                return Response({'status': 'success'})
+            if status_value not in ['approved', 'rejected']:
+                raise ValidationError('Invalid status value')
+
+            provider.verification_status = status_value
+            provider.save()
             return Response({
-                'status': 'error',
-                'message': 'Invalid status value'
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'status': 'success',
+                'message': f'Provider status updated to {status_value}'
+            })
         except Exception as e:
             return Response({
                 'status': 'error',
