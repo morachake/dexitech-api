@@ -14,6 +14,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
                  'is_provider', 'provider_profile', 'client_profile')
         read_only_fields = ('id', 'username', 'is_provider', 
                           'provider_profile', 'client_profile')
+        ref_name = 'APIUserProfile'
 
     def get_is_provider(self, obj):
         return hasattr(obj, 'serviceprovider')
@@ -48,6 +49,9 @@ class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
     confirm_password = serializers.CharField(required=True)
+
+    class Meta:
+        ref_name = 'APIChangePassword'
 
     def validate_new_password(self, value):
         validate_password(value)

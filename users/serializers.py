@@ -9,3 +9,4 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['id', 'username', 'email', 'phone_number', 'address', 'created_at']
+        ref_name= "AppUserProfile"
