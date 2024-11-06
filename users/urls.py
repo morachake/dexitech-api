@@ -1,10 +1,18 @@
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from . import views
-
-router = DefaultRouter()
-router.register(r'profiles', views.UserProfileViewSet)
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    # Client/User endpoints
+    path('users/', include('api.users.urls')),
+    
+    # Service Provider endpoints
+    path('providers/', include('api.providers.urls')),
+    
+    # Service endpoints
+    path('services/', include('api.services.urls')),
+    
+    # Order endpoints
+    path('orders/', include('api.orders.urls')),
+    
+    # Payment endpoints
+    path('payments/', include('api.payments.urls')),
 ]

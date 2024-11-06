@@ -5,17 +5,12 @@
 <div class="container-fluid">
     <div class="row">
         <!-- Sidebar -->
-        <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+        <nav class="col-md-2 d-none d-md-block sidebar">
             <div class="position-sticky pt-3">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'dashboard' %}">
-                            <i class="bi bi-arrow-left"></i> Back to Dashboard
-                        </a>
-                    </li>
-                </ul>
+                {% include 'dashboard/includes/sidebar.html' with active='providers' %}
             </div>
         </nav>
+
 
         <!-- Main Content -->
         <main class="col-md-10 ms-sm-auto px-md-4">

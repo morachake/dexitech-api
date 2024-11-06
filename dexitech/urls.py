@@ -21,20 +21,18 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    # Admin and Dashboard
     path('admin/', admin.site.urls),
     path('dashboard/', include('dashboard.urls')),
-    path('users/', include('users.urls')),
-    path('services/', include('services.urls')),
-    path('api-auth/', include('rest_framework.urls')),
     
     # Authentication URLs
     path('accounts/login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     
-    # API URLs
-    path('api/v1/', include('api.urls')),
+    # API URLs - version 1
+    path('api/v1/', include('dexitech_api.urls')),
     
-    # Swagger documentation
+    # API Documentation
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
